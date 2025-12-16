@@ -55,6 +55,13 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
 
       if (!response.ok) {
         const data = await response.json()
+        // Show detailed validation errors if available
+        if (data.details && Array.isArray(data.details)) {
+          const errorMessages = data.details.map((err: any) => 
+            `${err.path.join('.')}: ${err.message}`
+          ).join(', ')
+          throw new Error(`Invalid input: ${errorMessages}`)
+        }
         throw new Error(data.error || 'Failed to save item')
       }
 
