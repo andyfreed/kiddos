@@ -35,10 +35,22 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
       const url = item ? `/api/items/${item.id}` : '/api/items'
       const method = item ? 'PUT' : 'POST'
 
+      // Clean up the data before sending
+      const cleanedData = {
+        ...formData,
+        description: formData.description || undefined,
+        start_at: formData.start_at || null,
+        end_at: formData.end_at || null,
+        deadline_at: formData.deadline_at || null,
+        priority: formData.priority || undefined,
+      }
+
+      console.log('Sending item data:', cleanedData)
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(cleanedData),
       })
 
       if (!response.ok) {
@@ -120,7 +132,14 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
                 id="start_at"
                 type="datetime-local"
                 value={formData.start_at ? new Date(formData.start_at).toISOString().slice(0, 16) : ''}
-                onChange={(e) => setFormData({ ...formData, start_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const localDate = new Date(e.target.value);
+                    setFormData({ ...formData, start_at: localDate.toISOString() });
+                  } else {
+                    setFormData({ ...formData, start_at: null });
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -132,7 +151,14 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
                 id="end_at"
                 type="datetime-local"
                 value={formData.end_at ? new Date(formData.end_at).toISOString().slice(0, 16) : ''}
-                onChange={(e) => setFormData({ ...formData, end_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const localDate = new Date(e.target.value);
+                    setFormData({ ...formData, end_at: localDate.toISOString() });
+                  } else {
+                    setFormData({ ...formData, end_at: null });
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -148,7 +174,16 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
               id="deadline_at"
               type="datetime-local"
               value={formData.deadline_at ? new Date(formData.deadline_at).toISOString().slice(0, 16) : ''}
-              onChange={(e) => setFormData({ ...formData, deadline_at: e.target.value ? new Date(e.target.value).toISOString() : null })}
+              onChange={(e) => {
+                if (e.target.value) {
+                  // datetime-local gives us YYYY-MM-DDTHH:mm format (local time, no timezone)
+                  // Convert to ISO string for storage
+                  const localDate = new Date(e.target.value);
+                  setFormData({ ...formData, deadline_at: localDate.toISOString() });
+                } else {
+                  setFormData({ ...formData, deadline_at: null });
+                }
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
