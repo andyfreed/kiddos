@@ -4,11 +4,11 @@ export const KidSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
   name: z.string().min(1),
-  birthday: z.string().date().nullable(),
-  grade: z.string().nullable(),
-  notes: z.string().nullable(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
+  birthday: z.union([z.string(), z.null()]).nullable(), // Accept any string or null for dates
+  grade: z.union([z.string(), z.null()]).nullable(),
+  notes: z.union([z.string(), z.null()]).nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const KidCreateSchema = z.object({

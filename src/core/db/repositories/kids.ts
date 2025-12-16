@@ -11,7 +11,17 @@ export async function getKids(userId: string): Promise<Kid[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data.map(kid => KidSchema.parse(kid));
+  if (!data) return [];
+  
+  // Parse and handle validation errors gracefully
+  return data.map(kid => {
+    try {
+      return KidSchema.parse(kid);
+    } catch (parseError) {
+      console.error('Error parsing kid:', parseError, 'Raw data:', kid);
+      throw parseError;
+    }
+  });
 }
 
 export async function getKidById(userId: string, kidId: string): Promise<Kid | null> {
