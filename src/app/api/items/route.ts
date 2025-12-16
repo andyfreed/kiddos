@@ -67,18 +67,56 @@ export async function POST(request: NextRequest) {
     
     console.log('Cleaned body:', JSON.stringify(cleanBody, null, 2))
     
-    // Parse and validate - don't use strict, just validate what we have
+    // Manually validate and convert dates before schema validation
+    const processedBody: any = { ...cleanBody }
+    
+    // Convert date strings to ISO format if they exist
+    if (processedBody.start_at && typeof processedBody.start_at === 'string') {
+      const date = new Date(processedBody.start_at);
+      processedBody.start_at = !isNaN(date.getTime()) ? date.toISOString() : null;
+    } else {
+      processedBody.start_at = null;
+    }
+    
+    if (processedBody.end_at && typeof processedBody.end_at === 'string') {
+      const date = new Date(processedBody.end_at);
+      processedBody.end_at = !isNaN(date.getTime()) ? date.toISOString() : null;
+    } else {
+      processedBody.end_at = null;
+    }
+    
+    if (processedBody.deadline_at && typeof processedBody.deadline_at === 'string') {
+      const date = new Date(processedBody.deadline_at);
+      processedBody.deadline_at = !isNaN(date.getTime()) ? date.toISOString() : null;
+    } else {
+      processedBody.deadline_at = null;
+    }
+    
+    // Ensure priority is number or null
+    if (processedBody.priority === '' || processedBody.priority === undefined) {
+      processedBody.priority = null;
+    }
+    
+    console.log('Processed body before validation:', JSON.stringify(processedBody, null, 2))
+    
+    // Parse and validate - use passthrough to ignore unknown fields
     try {
-      const itemData = ItemCreateRequestSchema.parse(cleanBody)
+      const itemData = ItemCreateRequestSchema.passthrough().parse(processedBody)
       
-      // Ensure all datetime fields are null instead of undefined
-      const finalData = {
-        ...itemData,
+      // Strip out any fields that shouldn't go to repository
+      const finalData: any = {
+        type: itemData.type,
+        title: itemData.title,
+        status: itemData.status || 'open',
         start_at: itemData.start_at ?? null,
         end_at: itemData.end_at ?? null,
         deadline_at: itemData.deadline_at ?? null,
         priority: itemData.priority ?? null,
       }
+      
+      if (itemData.description) finalData.description = itemData.description
+      if (itemData.checklist) finalData.checklist = itemData.checklist
+      if (itemData.tags) finalData.tags = itemData.tags
 
       console.log('Final data for repository:', JSON.stringify(finalData, null, 2))
 
