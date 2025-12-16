@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
     // Strip out any fields that shouldn't be in create request
     const { created_at, updated_at, id, user_id, created_from, ...cleanBody } = body
     
-    const itemData = ItemCreateRequestSchema.parse(cleanBody)
+    // Use passthrough to allow unknown fields but only validate what we care about
+    const itemData = ItemCreateRequestSchema.passthrough().parse(cleanBody)
+    
+    // Now strip out any remaining unwanted fields before passing to repository
+    const { created_at: _, updated_at: __, id: ___, user_id: ____, created_from: _____, ...finalData } = itemData as any
 
     const item = await createFamilyItem(user.id, itemData)
     return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })

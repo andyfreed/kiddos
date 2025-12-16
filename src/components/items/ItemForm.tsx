@@ -35,15 +35,21 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
       const url = item ? `/api/items/${item.id}` : '/api/items'
       const method = item ? 'PUT' : 'POST'
 
-      // Clean up the data before sending
-      const cleanedData = {
-        ...formData,
-        description: formData.description || undefined,
-        start_at: formData.start_at || null,
-        end_at: formData.end_at || null,
-        deadline_at: formData.deadline_at || null,
-        priority: formData.priority || undefined,
+      // Clean up the data before sending - only send fields that are in the schema
+      const cleanedData: any = {
+        type: formData.type,
+        title: formData.title,
+        status: formData.status,
       }
+      
+      // Add optional fields only if they have values
+      if (formData.description) cleanedData.description = formData.description
+      if (formData.start_at) cleanedData.start_at = formData.start_at
+      if (formData.end_at) cleanedData.end_at = formData.end_at
+      if (formData.deadline_at) cleanedData.deadline_at = formData.deadline_at
+      if (formData.priority) cleanedData.priority = formData.priority
+      if (formData.checklist && formData.checklist.length > 0) cleanedData.checklist = formData.checklist
+      if (formData.tags && formData.tags.length > 0) cleanedData.tags = formData.tags
 
       console.log('Sending item data:', cleanedData)
 
