@@ -64,13 +64,13 @@ export default function KidDetail({ kid }: KidDetailProps) {
         <dl className="space-y-4">
           {kid.grade && (
             <div>
-              <dt className="text-sm font-medium text-gray-500">Grade</dt>
+              <dt className="text-sm font-medium text-gray-700">Grade</dt>
               <dd className="mt-1 text-sm text-gray-900">{kid.grade}</dd>
             </div>
           )}
           {kid.birthday && (
             <div>
-              <dt className="text-sm font-medium text-gray-500">Birthday</dt>
+              <dt className="text-sm font-medium text-gray-700">Birthday</dt>
               <dd className="mt-1 text-sm text-gray-900">
                 {new Date(kid.birthday).toLocaleDateString()}
               </dd>
@@ -78,7 +78,7 @@ export default function KidDetail({ kid }: KidDetailProps) {
           )}
           {kid.notes && (
             <div>
-              <dt className="text-sm font-medium text-gray-500">Notes</dt>
+              <dt className="text-sm font-medium text-gray-700">Notes</dt>
               <dd className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{kid.notes}</dd>
             </div>
           )}

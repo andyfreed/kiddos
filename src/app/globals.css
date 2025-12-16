@@ -15,9 +15,19 @@
 }
 
 body {
-  color: var(--foreground);
+  color: #1f2937; /* Dark gray for better contrast */
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Ensure headings are dark */
+h1, h2, h3, h4, h5, h6 {
+  color: #111827; /* Very dark gray/black */
+}
+
+/* Ensure paragraphs and body text are readable */
+p {
+  color: #374151; /* Dark gray */
 }
 
 @layer utilities {

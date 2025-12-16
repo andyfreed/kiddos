@@ -65,10 +65,10 @@ export default function ItemCard({ item }: ItemCardProps) {
           </div>
 
           {item.description && (
-            <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+            <p className="text-gray-700 text-sm mb-2">{item.description}</p>
           )}
 
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-4 text-sm text-gray-600">
             {item.deadline_at && (
               <span>Due: {format(new Date(item.deadline_at), 'MMM d, yyyy h:mm a')}</span>
             )}

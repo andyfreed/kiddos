@@ -2,7 +2,7 @@ export default function SettingsPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
-      <p className="text-gray-600">Settings and connections coming soon...</p>
+      <p className="text-gray-700">Settings and connections coming soon...</p>
     </div>
   )
 }

@@ -43,13 +43,13 @@ export default function ItemList({ initialItems = [], filters = {} }: ItemListPr
   }, [filters, initialItems.length])
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading items...</div>
+    return <div className="text-center py-8 text-gray-700">Loading items...</div>
   }
 
   if (items.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">No items found.</p>
+        <p className="text-gray-700">No items found.</p>
       </div>
     )
   }
