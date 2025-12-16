@@ -68,20 +68,32 @@ export async function POST(request: NextRequest) {
     console.log('Cleaned body:', JSON.stringify(cleanBody, null, 2))
     
     // Parse and validate - use strict mode to reject unknown fields
-    const itemData = ItemCreateRequestSchema.strict().parse(cleanBody)
-    
-    // Ensure all datetime fields are null instead of undefined
-    const finalData = {
-      ...itemData,
-      start_at: itemData.start_at ?? null,
-      end_at: itemData.end_at ?? null,
-      deadline_at: itemData.deadline_at ?? null,
-      priority: itemData.priority ?? null,
+    try {
+      const itemData = ItemCreateRequestSchema.strict().parse(cleanBody)
+      
+      // Ensure all datetime fields are null instead of undefined
+      const finalData = {
+        ...itemData,
+        start_at: itemData.start_at ?? null,
+        end_at: itemData.end_at ?? null,
+        deadline_at: itemData.deadline_at ?? null,
+        priority: itemData.priority ?? null,
+      }
+
+      console.log('Final data for repository:', JSON.stringify(finalData, null, 2))
+
+      const item = await createFamilyItem(user.id, finalData)
+      return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })
+    } catch (parseError: any) {
+      // If it's a ZodError, log the actual received data for debugging
+      if (parseError.name === 'ZodError') {
+        console.error('Zod validation error:', parseError.errors)
+        console.error('Received body keys:', Object.keys(body))
+        console.error('Clean body keys:', Object.keys(cleanBody))
+        throw parseError
+      }
+      throw parseError
     }
-
-    console.log('Final data for repository:', JSON.stringify(finalData, null, 2))
-
-    const item = await createFamilyItem(user.id, finalData)
     return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'ZodError') {
