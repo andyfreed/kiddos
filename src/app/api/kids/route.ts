@@ -29,13 +29,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    
+    // Log for debugging (remove in production)
+    console.log('Received body:', JSON.stringify(body, null, 2))
+    
     const kidData = KidCreateSchema.parse(body)
 
     const kid = await createKid(user.id, kidData)
     return NextResponse.json({ kid }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      console.error('Validation error:', error.errors)
+      return NextResponse.json({ 
+        error: 'Invalid input', 
+        details: error.errors,
+        received: body 
+      }, { status: 400 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
