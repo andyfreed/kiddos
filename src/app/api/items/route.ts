@@ -48,23 +48,31 @@ export async function POST(request: NextRequest) {
     // Log for debugging
     console.log('Received item body:', JSON.stringify(body, null, 2))
     
-    // Strip out any fields that shouldn't be in create request
-    const { created_at, updated_at, id, user_id, created_from, ...cleanBody } = body
+    // Strip out any fields that shouldn't be in create request - do this aggressively
+    const cleanBody: any = {}
+    const allowedFields = ['type', 'title', 'description', 'start_at', 'end_at', 'deadline_at', 'status', 'checklist', 'tags', 'priority', 'kidIds', 'activityId', 'contactIds', 'placeId']
     
-    // Use passthrough to allow unknown fields but only validate what we care about
-    const itemData = ItemCreateRequestSchema.passthrough().parse(cleanBody)
+    for (const key of allowedFields) {
+      if (key in body) {
+        cleanBody[key] = body[key]
+      }
+    }
     
-    // Now strip out any remaining unwanted fields and ensure undefined becomes null
-    const { created_at: _, updated_at: __, id: ___, user_id: ____, created_from: _____, ...rest } = itemData as any
+    console.log('Cleaned body:', JSON.stringify(cleanBody, null, 2))
+    
+    // Parse and validate
+    const itemData = ItemCreateRequestSchema.parse(cleanBody)
     
     // Ensure all datetime fields are null instead of undefined
     const finalData = {
-      ...rest,
-      start_at: rest.start_at ?? null,
-      end_at: rest.end_at ?? null,
-      deadline_at: rest.deadline_at ?? null,
-      priority: rest.priority ?? null,
+      ...itemData,
+      start_at: itemData.start_at ?? null,
+      end_at: itemData.end_at ?? null,
+      deadline_at: itemData.deadline_at ?? null,
+      priority: itemData.priority ?? null,
     }
+
+    console.log('Final data for repository:', JSON.stringify(finalData, null, 2))
 
     const item = await createFamilyItem(user.id, finalData)
     return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })

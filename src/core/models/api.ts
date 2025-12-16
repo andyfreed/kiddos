@@ -222,8 +222,8 @@ export const ItemCreateRequestSchema = z.object({
       }
       return null;
     },
-    z.union([z.string(), z.null()]).nullable().optional()
-  ),
+    z.union([z.string(), z.null()]).nullable()
+  ).optional(),
   end_at: z.preprocess(
     (val) => {
       if (val === '' || val === undefined || val === null) return null;
@@ -235,8 +235,8 @@ export const ItemCreateRequestSchema = z.object({
       }
       return null;
     },
-    z.union([z.string(), z.null()]).nullable().optional()
-  ),
+    z.union([z.string(), z.null()]).nullable()
+  ).optional(),
   deadline_at: z.preprocess(
     (val) => {
       if (val === '' || val === undefined || val === null) return null;
@@ -248,8 +248,8 @@ export const ItemCreateRequestSchema = z.object({
       }
       return null;
     },
-    z.union([z.string(), z.null()]).nullable().optional()
-  ),
+    z.union([z.string(), z.null()]).nullable()
+  ).optional(),
   status: z.enum(['open', 'done', 'snoozed', 'dismissed']).default('open'),
   checklist: z.array(z.object({
     text: z.string(),
