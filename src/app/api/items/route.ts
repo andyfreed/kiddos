@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     // Log for debugging
     console.log('Received item body:', JSON.stringify(body, null, 2))
     
-    const itemData = ItemCreateRequestSchema.parse(body)
+    // Strip out any fields that shouldn't be in create request
+    const { created_at, updated_at, id, user_id, created_from, ...cleanBody } = body
+    
+    const itemData = ItemCreateRequestSchema.parse(cleanBody)
 
     const item = await createFamilyItem(user.id, itemData)
     return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })

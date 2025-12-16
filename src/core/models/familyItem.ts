@@ -27,14 +27,64 @@ export const FamilyItemSchema = z.object({
 export const FamilyItemCreateSchema = z.object({
   type: z.enum(['task', 'event', 'deadline']),
   title: z.string().min(1),
-  description: z.string().optional().nullable(),
-  start_at: z.string().datetime().optional().nullable(),
-  end_at: z.string().datetime().optional().nullable(),
-  deadline_at: z.string().datetime().optional().nullable(),
+  description: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().nullable().transform(val => val === '' ? undefined : val),
+  start_at: z.union([
+    z.string(),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    if (typeof val === 'string' && val.length > 0) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return null;
+  }),
+  end_at: z.union([
+    z.string(),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    if (typeof val === 'string' && val.length > 0) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return null;
+  }),
+  deadline_at: z.union([
+    z.string(),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    if (typeof val === 'string' && val.length > 0) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return null;
+  }),
   status: z.enum(['open', 'done', 'snoozed', 'dismissed']).default('open'),
   checklist: z.array(ChecklistItemSchema).optional(),
   tags: z.array(z.string()).optional(),
-  priority: z.number().int().min(1).max(5).optional().nullable(),
+  priority: z.union([
+    z.number().int().min(1).max(5),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    return val;
+  }),
 });
 
 export const FamilyItemUpdateSchema = FamilyItemCreateSchema.partial().extend({
