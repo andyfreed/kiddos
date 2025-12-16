@@ -206,7 +206,7 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
             min="1"
             max="5"
             value={formData.priority || ''}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value ? parseInt(e.target.value) : undefined })}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value ? parseInt(e.target.value) : null })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
