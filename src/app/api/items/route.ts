@@ -58,10 +58,17 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Explicitly remove any server-only fields that might have snuck in
+    delete cleanBody.created_at
+    delete cleanBody.updated_at
+    delete cleanBody.id
+    delete cleanBody.user_id
+    delete cleanBody.created_from
+    
     console.log('Cleaned body:', JSON.stringify(cleanBody, null, 2))
     
-    // Parse and validate
-    const itemData = ItemCreateRequestSchema.parse(cleanBody)
+    // Parse and validate - use strict mode to reject unknown fields
+    const itemData = ItemCreateRequestSchema.strict().parse(cleanBody)
     
     // Ensure all datetime fields are null instead of undefined
     const finalData = {
