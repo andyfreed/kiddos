@@ -54,10 +54,19 @@ export async function POST(request: NextRequest) {
     // Use passthrough to allow unknown fields but only validate what we care about
     const itemData = ItemCreateRequestSchema.passthrough().parse(cleanBody)
     
-    // Now strip out any remaining unwanted fields before passing to repository
-    const { created_at: _, updated_at: __, id: ___, user_id: ____, created_from: _____, ...finalData } = itemData as any
+    // Now strip out any remaining unwanted fields and ensure undefined becomes null
+    const { created_at: _, updated_at: __, id: ___, user_id: ____, created_from: _____, ...rest } = itemData as any
+    
+    // Ensure all datetime fields are null instead of undefined
+    const finalData = {
+      ...rest,
+      start_at: rest.start_at ?? null,
+      end_at: rest.end_at ?? null,
+      deadline_at: rest.deadline_at ?? null,
+      priority: rest.priority ?? null,
+    }
 
-    const item = await createFamilyItem(user.id, itemData)
+    const item = await createFamilyItem(user.id, finalData)
     return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'ZodError') {
