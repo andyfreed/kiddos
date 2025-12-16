@@ -207,55 +207,14 @@ export type ItemsListQuery = z.infer<typeof ItemsListQuerySchema>;
 export type ItemsListResponse = z.infer<typeof ItemsListResponseSchema>;
 
 // POST /api/items
+// Simplified schema - no datetime validation, just accept strings and convert manually
 export const ItemCreateRequestSchema = z.object({
   type: z.enum(['task', 'event', 'deadline']),
   title: z.string().min(1),
   description: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().transform(val => val === '' ? undefined : val),
-  start_at: z.union([
-    z.string(),
-    z.literal(''),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable().transform(val => {
-    if (!val || val === '') return null;
-    if (typeof val === 'string') {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString();
-      }
-    }
-    return null;
-  }),
-  end_at: z.union([
-    z.string(),
-    z.literal(''),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable().transform(val => {
-    if (!val || val === '') return null;
-    if (typeof val === 'string') {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString();
-      }
-    }
-    return null;
-  }),
-  deadline_at: z.union([
-    z.string(),
-    z.literal(''),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable().transform(val => {
-    if (!val || val === '') return null;
-    if (typeof val === 'string') {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString();
-      }
-    }
-    return null;
-  }),
+  start_at: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().nullable(),
+  end_at: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().nullable(),
+  deadline_at: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().nullable(),
   status: z.enum(['open', 'done', 'snoozed', 'dismissed']).default('open'),
   checklist: z.array(z.object({
     text: z.string(),
@@ -275,7 +234,7 @@ export const ItemCreateRequestSchema = z.object({
   activityId: z.string().uuid().optional(),
   contactIds: z.array(z.string().uuid()).optional(),
   placeId: z.string().uuid().optional(),
-});
+}).strip(); // Strip unknown fields instead of passthrough
 
 export const ItemCreateResponseSchema = z.object({
   success: z.boolean(),

@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
     
     console.log('Processed body before validation:', JSON.stringify(processedBody, null, 2))
     
-    // Parse and validate - use passthrough to ignore unknown fields
+    // Parse and validate - strip unknown fields
     try {
-      const itemData = ItemCreateRequestSchema.passthrough().parse(processedBody)
+      const itemData = ItemCreateRequestSchema.parse(processedBody)
       
       // Strip out any fields that shouldn't go to repository
       const finalData: any = {
