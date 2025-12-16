@@ -21,7 +21,7 @@ export default function ItemForm({ item, onCancel }: ItemFormProps) {
     status: item?.status || 'open',
     checklist: item?.checklist || undefined,
     tags: item?.tags || undefined,
-    priority: item?.priority || undefined,
+    priority: item?.priority ?? null,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
