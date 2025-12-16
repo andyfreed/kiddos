@@ -42,8 +42,7 @@ export async function POST(request: NextRequest) {
       console.error('Validation error:', error.errors)
       return NextResponse.json({ 
         error: 'Invalid input', 
-        details: error.errors,
-        received: body 
+        details: error.errors
       }, { status: 400 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
