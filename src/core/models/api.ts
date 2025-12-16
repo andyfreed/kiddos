@@ -210,17 +210,67 @@ export type ItemsListResponse = z.infer<typeof ItemsListResponseSchema>;
 export const ItemCreateRequestSchema = z.object({
   type: z.enum(['task', 'event', 'deadline']),
   title: z.string().min(1),
-  description: z.string().optional(),
-  start_at: z.string().datetime().nullable().optional(),
-  end_at: z.string().datetime().nullable().optional(),
-  deadline_at: z.string().datetime().nullable().optional(),
+  description: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().transform(val => val === '' ? undefined : val),
+  start_at: z.union([
+    z.string(),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    if (typeof val === 'string' && val.length > 0) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return null;
+  }),
+  end_at: z.union([
+    z.string(),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    if (typeof val === 'string' && val.length > 0) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return null;
+  }),
+  deadline_at: z.union([
+    z.string(),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    if (typeof val === 'string' && val.length > 0) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+    return null;
+  }),
   status: z.enum(['open', 'done', 'snoozed', 'dismissed']).default('open'),
   checklist: z.array(z.object({
     text: z.string(),
     checked: z.boolean().default(false),
   })).optional(),
   tags: z.array(z.string()).optional(),
-  priority: z.number().int().min(1).max(5).optional(),
+  priority: z.union([
+    z.number().int().min(1).max(5),
+    z.literal(''),
+    z.null(),
+    z.undefined()
+  ]).optional().nullable().transform(val => {
+    if (val === '' || val === undefined) return null;
+    return val;
+  }),
   kidIds: z.array(z.string().uuid()).optional(),
   activityId: z.string().uuid().optional(),
   contactIds: z.array(z.string().uuid()).optional(),

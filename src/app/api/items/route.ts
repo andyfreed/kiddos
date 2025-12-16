@@ -44,12 +44,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    
+    // Log for debugging
+    console.log('Received item body:', JSON.stringify(body, null, 2))
+    
     const itemData = ItemCreateRequestSchema.parse(body)
 
     const item = await createFamilyItem(user.id, itemData)
     return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'ZodError') {
+      console.error('Validation error:', error.errors)
       return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
