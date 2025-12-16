@@ -211,51 +211,45 @@ export const ItemCreateRequestSchema = z.object({
   type: z.enum(['task', 'event', 'deadline']),
   title: z.string().min(1),
   description: z.union([z.string(), z.literal(''), z.null(), z.undefined()]).optional().transform(val => val === '' ? undefined : val),
-  start_at: z.union([
-    z.string(),
-    z.literal(''),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable().transform(val => {
-    if (val === '' || val === undefined) return null;
-    if (typeof val === 'string' && val.length > 0) {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString();
+  start_at: z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined || val === null) return null;
+      if (typeof val === 'string' && val.length > 0) {
+        const date = new Date(val);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
       }
-    }
-    return null;
-  }),
-  end_at: z.union([
-    z.string(),
-    z.literal(''),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable().transform(val => {
-    if (val === '' || val === undefined) return null;
-    if (typeof val === 'string' && val.length > 0) {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString();
+      return null;
+    },
+    z.union([z.string(), z.null()]).nullable().optional()
+  ),
+  end_at: z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined || val === null) return null;
+      if (typeof val === 'string' && val.length > 0) {
+        const date = new Date(val);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
       }
-    }
-    return null;
-  }),
-  deadline_at: z.union([
-    z.string(),
-    z.literal(''),
-    z.null(),
-    z.undefined()
-  ]).optional().nullable().transform(val => {
-    if (val === '' || val === undefined) return null;
-    if (typeof val === 'string' && val.length > 0) {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        return date.toISOString();
+      return null;
+    },
+    z.union([z.string(), z.null()]).nullable().optional()
+  ),
+  deadline_at: z.preprocess(
+    (val) => {
+      if (val === '' || val === undefined || val === null) return null;
+      if (typeof val === 'string' && val.length > 0) {
+        const date = new Date(val);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString();
+        }
       }
-    }
-    return null;
-  }),
+      return null;
+    },
+    z.union([z.string(), z.null()]).nullable().optional()
+  ),
   status: z.enum(['open', 'done', 'snoozed', 'dismissed']).default('open'),
   checklist: z.array(z.object({
     text: z.string(),
