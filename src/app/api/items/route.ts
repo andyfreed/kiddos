@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
     
     console.log('Cleaned body:', JSON.stringify(cleanBody, null, 2))
     
-    // Parse and validate - use strict mode to reject unknown fields
+    // Parse and validate - don't use strict, just validate what we have
     try {
-      const itemData = ItemCreateRequestSchema.strict().parse(cleanBody)
+      const itemData = ItemCreateRequestSchema.parse(cleanBody)
       
       // Ensure all datetime fields are null instead of undefined
       const finalData = {
@@ -90,11 +90,11 @@ export async function POST(request: NextRequest) {
         console.error('Zod validation error:', parseError.errors)
         console.error('Received body keys:', Object.keys(body))
         console.error('Clean body keys:', Object.keys(cleanBody))
+        console.error('Clean body values:', cleanBody)
         throw parseError
       }
       throw parseError
     }
-    return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'ZodError') {
       console.error('Validation error:', error.errors)
