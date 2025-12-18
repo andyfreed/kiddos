@@ -41,9 +41,17 @@ export async function POST() {
 
     for (const msg of messages) {
       const sender = msg.from?.emailAddress?.address?.toLowerCase?.() || ''
-      if (allowedSenders.length && !allowedSenders.includes(sender)) {
-        skipped++
-        continue
+      if (allowedSenders.length) {
+        const matches = allowedSenders.some((pattern) => {
+          if (pattern.startsWith('*@')) {
+            return sender.endsWith(pattern.slice(1))
+          }
+          return sender === pattern
+        })
+        if (!matches) {
+          skipped++
+          continue
+        }
       }
 
       const bodyText = msg.body?.content || msg.bodyPreview || ''

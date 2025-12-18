@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react'
 
 type SenderEntry = { email: string; label?: string }
 
+function isValidPattern(email: string) {
+  const val = email.trim().toLowerCase()
+  if (val.startsWith('*@')) {
+    return /^\*@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/.test(val)
+  }
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+}
+
 export default function ApprovedSendersForm() {
   const [entries, setEntries] = useState<SenderEntry[]>([])
   const [emailInput, setEmailInput] = useState('')
@@ -30,11 +38,15 @@ export default function ApprovedSendersForm() {
 
   const addEntry = () => {
     const email = emailInput.trim().toLowerCase()
-    if (!email) return
+    if (!email || !isValidPattern(email)) {
+      setError('Enter an email or *@example.com')
+      return
+    }
     if (entries.some((e) => e.email === email)) return
     setEntries((prev) => [...prev, { email, label: labelInput.trim() }])
     setEmailInput('')
     setLabelInput('')
+    setError(null)
   }
 
   const removeEntry = (email: string) => {
@@ -65,8 +77,8 @@ export default function ApprovedSendersForm() {
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_auto_auto] gap-2 items-center">
         <input
-          type="email"
-          placeholder="sender@example.com"
+          type="text"
+          placeholder="sender@example.com or *@school.org"
           value={emailInput}
           onChange={(e) => setEmailInput(e.target.value)}
           className="border border-gray-300 rounded-md px-3 py-2"

@@ -286,8 +286,16 @@ export const OutlookSyncResponseSchema = z.object({
 
 export type OutlookSyncResponse = z.infer<typeof OutlookSyncResponseSchema>;
 
+const emailOrDomain = z.string().trim().toLowerCase().refine((val) => {
+  if (val.startsWith('*@')) {
+    return /^\*@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$/.test(val)
+  }
+  // basic email shape
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+}, { message: 'Enter an email or *@example.com domain pattern' })
+
 export const ApprovedSenderEntrySchema = z.object({
-  email: z.string().email(),
+  email: emailOrDomain,
   label: z.string().optional().default(''),
 });
 
