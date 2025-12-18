@@ -1,5 +1,35 @@
 import { z } from 'zod';
 
+function normalizeDatetimeInput(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'string') return value;
+
+  let candidate = value.trim();
+  if (!candidate) return value;
+
+  // Common Postgres/Supabase variants that are ISO-like but not RFC3339.
+  // - "2025-12-18 12:34:56+00"  -> "2025-12-18T12:34:56+00:00"
+  // - "2025-12-18T12:34:56+0000" -> "2025-12-18T12:34:56+00:00"
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(candidate)) {
+    candidate = candidate.replace(' ', 'T');
+  }
+  if (/[+-]\d{4}$/.test(candidate)) {
+    candidate = candidate.replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+  } else if (/[+-]\d{2}$/.test(candidate)) {
+    candidate = `${candidate}:00`;
+  }
+
+  const date = new Date(candidate);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString();
+}
+
+const DateTimeString = z.preprocess(normalizeDatetimeInput, z.string().datetime());
+const NullableDateTimeString = z.preprocess(
+  normalizeDatetimeInput,
+  z.string().datetime().nullable()
+);
+
 export const ChecklistItemSchema = z.object({
   text: z.string(),
   checked: z.boolean(),
@@ -11,17 +41,17 @@ export const FamilyItemSchema = z.object({
   type: z.enum(['task', 'event', 'deadline']),
   title: z.string().min(1),
   description: z.string().nullable(),
-  start_at: z.string().datetime().nullable(),
-  end_at: z.string().datetime().nullable(),
-  deadline_at: z.string().datetime().nullable(),
+  start_at: NullableDateTimeString,
+  end_at: NullableDateTimeString,
+  deadline_at: NullableDateTimeString,
   status: z.enum(['open', 'done', 'snoozed', 'dismissed']),
-  snooze_until: z.string().datetime().nullable(),
+  snooze_until: NullableDateTimeString,
   checklist: z.array(ChecklistItemSchema).nullable(),
   tags: z.array(z.string()).nullable(),
   priority: z.number().int().min(1).max(5).nullable(),
   created_from: z.enum(['approved', 'manual', 'chat', 'imported_calendar']),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
+  created_at: DateTimeString,
+  updated_at: DateTimeString,
 });
 
 export const FamilyItemCreateSchema = z.object({
