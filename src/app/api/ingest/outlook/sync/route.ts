@@ -33,7 +33,7 @@ export async function POST() {
     }
 
     const settings = await getUserSettings(user.id)
-    const allowedSenders = settings.approved_senders || []
+    const allowedSenders = (settings.approved_senders || []).map((e) => e.email.toLowerCase())
 
     const messages = await fetchOutlookMessages(accessToken, 25)
     let ingested = 0

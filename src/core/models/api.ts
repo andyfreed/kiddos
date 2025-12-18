@@ -9,39 +9,6 @@ import { z } from 'zod';
 // Ingest APIs
 // ============================================================================
 
-// POST /api/ingest/outlook/sync
-export const OutlookSyncRequestSchema = z.object({
-  since: z.string().datetime().optional(), // ISO datetime, defaults to last sync
-  folder: z.string().optional(), // Specific folder to sync
-});
-
-export const OutlookSyncResponseSchema = z.object({
-  success: z.boolean(),
-  messagesProcessed: z.number(),
-  documentsProcessed: z.number(),
-  errors: z.array(z.string()).optional(),
-});
-
-export type OutlookSyncRequest = z.infer<typeof OutlookSyncRequestSchema>;
-export type OutlookSyncResponse = z.infer<typeof OutlookSyncResponseSchema>;
-
-// POST /api/ingest/manual
-export const ManualIngestRequestSchema = z.object({
-  subject: z.string().optional(),
-  body: z.string().min(1),
-  senderName: z.string().optional(),
-  senderEmail: z.string().email().optional(),
-  receivedAt: z.string().datetime().optional(), // defaults to now
-});
-
-export const ManualIngestResponseSchema = z.object({
-  success: z.boolean(),
-  messageId: z.string().uuid(),
-});
-
-export type ManualIngestRequest = z.infer<typeof ManualIngestRequestSchema>;
-export type ManualIngestResponse = z.infer<typeof ManualIngestResponseSchema>;
-
 // POST /api/upload
 export const UploadRequestSchema = z.object({
   filename: z.string(),
@@ -319,10 +286,16 @@ export const OutlookSyncResponseSchema = z.object({
 
 export type OutlookSyncResponse = z.infer<typeof OutlookSyncResponseSchema>;
 
-export const ApprovedSendersSchema = z.object({
-  approved_senders: z.array(z.string().email()).default([]),
+export const ApprovedSenderEntrySchema = z.object({
+  email: z.string().email(),
+  label: z.string().optional().default(''),
 });
 
+export const ApprovedSendersSchema = z.object({
+  approved_senders: z.array(ApprovedSenderEntrySchema).default([]),
+});
+
+export type ApprovedSenderEntry = z.infer<typeof ApprovedSenderEntrySchema>;
 export type ApprovedSenders = z.infer<typeof ApprovedSendersSchema>;
 
 // ============================================================================
