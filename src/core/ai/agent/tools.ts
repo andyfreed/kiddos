@@ -48,12 +48,23 @@ export const ListInboxArgsSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional(),
 })
 
+export const ListKidsArgsSchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).optional(),
+})
+
+export const RenameKidArgsSchema = z.object({
+  fromName: z.string().min(1),
+  toName: z.string().min(1),
+})
+
 export type ToolName =
   | 'list_items'
   | 'create_item'
   | 'update_item'
   | 'delete_item'
   | 'list_inbox'
+  | 'list_kids'
+  | 'rename_kid'
   | 'list_suggestions'
   | 'approve_suggestions'
   | 'run_extraction'
@@ -141,6 +152,36 @@ export const OpenAITools = [
         properties: {
           limit: { type: 'integer', minimum: 1, maximum: 100 },
         },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_kids',
+      description: 'List kids for the current user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rename_kid',
+      description: 'Rename a kid by current name to a new name.',
+      parameters: {
+        type: 'object',
+        properties: {
+          fromName: { type: 'string' },
+          toName: { type: 'string' },
+        },
+        required: ['fromName', 'toName'],
         additionalProperties: false,
       },
     },

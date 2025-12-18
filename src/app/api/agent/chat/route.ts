@@ -8,6 +8,8 @@ import {
   UpdateItemArgsSchema,
   DeleteItemArgsSchema,
   ListInboxArgsSchema,
+  ListKidsArgsSchema,
+  RenameKidArgsSchema,
   ListSuggestionsArgsSchema,
   ApproveSuggestionsArgsSchema,
   RunExtractionArgsSchema,
@@ -22,6 +24,7 @@ import { createExtractionWithSuggestions } from '@/core/db/repositories/extracti
 import { logAgentAction } from '@/core/db/repositories/agentActions'
 import { getSupabaseClient } from '@/core/db/client'
 import { listSourceMessages } from '@/core/db/repositories/sourceMessages'
+import { getKids, updateKid } from '@/core/db/repositories/kids'
 
 export const dynamic = 'force-dynamic'
 
@@ -198,6 +201,44 @@ async function executeTool(params: {
         })),
       }
     }
+    case 'list_kids': {
+      const parsed = ListKidsArgsSchema.parse(args)
+      const kids = await getKids(userId)
+      const limited = parsed.limit ? kids.slice(0, parsed.limit) : kids
+      return {
+        kids: limited.map((k) => ({
+          id: k.id,
+          name: k.name,
+          grade: k.grade,
+          birthday: k.birthday,
+        })),
+      }
+    }
+    case 'rename_kid': {
+      const parsed = RenameKidArgsSchema.parse(args)
+      const kids = await getKids(userId)
+      const from = parsed.fromName.trim().toLowerCase()
+      const matches = kids.filter((k) => k.name.trim().toLowerCase() === from)
+      if (matches.length === 0) {
+        return { ok: false, message: `No kid found with name "${parsed.fromName}".`, kids: kids.map((k) => ({ id: k.id, name: k.name })) }
+      }
+      if (matches.length > 1) {
+        return { ok: false, message: `Multiple kids match "${parsed.fromName}". Please specify which one by id.`, matches: matches.map((k) => ({ id: k.id, name: k.name })) }
+      }
+      const kid = matches[0]
+      const updated = await updateKid(userId, kid.id, { name: parsed.toName })
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'update_kid',
+        target_table: 'kids',
+        target_id: updated.id,
+        before_json: kid,
+        after_json: updated,
+        diff_json: { name: { from: kid.name, to: updated.name } },
+      })
+      return { ok: true, kid: updated }
+    }
     case 'list_suggestions': {
       const parsed = ListSuggestionsArgsSchema.parse(args)
       const suggestions = await listSuggestions(userId, [parsed.state])
@@ -297,10 +338,11 @@ export async function POST(request: NextRequest) {
     // Provide lightweight context
     const items = await getFamilyItems(user.id, { limit: 20, offset: 0 })
     const suggestions = await listSuggestions(user.id, ['new'])
+    const kids = await getKids(user.id)
 
     const system = `You are Kiddos Assistant.\n\nRules:\n- Use tools to read/write data.\n- Never delete items or change date/time fields without confirmation.\n- For bulk mutations (>5), require confirmation.\n- If you need confirmation, explain what you want to do and wait.\n`
 
-    const context = `Context:\n- Recent items (max 20): ${JSON.stringify(items.items)}\n- New suggestions: ${JSON.stringify(suggestions.slice(0, 20))}\n`
+    const context = `Context:\n- Kids: ${JSON.stringify(kids.map((k) => ({ id: k.id, name: k.name })))}\n- Recent items (max 20): ${JSON.stringify(items.items)}\n- New suggestions: ${JSON.stringify(suggestions.slice(0, 20))}\n`
 
     const completion = await openAIChat({
       messages: [
