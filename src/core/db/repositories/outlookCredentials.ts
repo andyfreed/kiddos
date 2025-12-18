@@ -27,12 +27,28 @@ export async function getOutlookCredentials(userId: string): Promise<OutlookCred
 
 export async function upsertOutlookCredentials(userId: string, creds: Partial<OutlookCredentials>): Promise<OutlookCredentials> {
   const supabase = await getSupabaseClient()
+  const payload: any = {
+    user_id: userId,
+    ...creds,
+  }
+
+  // Mirror into legacy encrypted columns if they exist (schema from earlier migration)
+  if ('access_token' in creds) {
+    payload.access_token_encrypted = creds.access_token
+  }
+  if ('refresh_token' in creds) {
+    payload.refresh_token_encrypted = creds.refresh_token
+  }
+  if ('expires_at' in creds) {
+    payload.expires_at_encrypted = creds.expires_at
+  }
+  if ('token_type' in creds) {
+    payload.token_type_encrypted = creds.token_type
+  }
+
   const { data, error } = await supabase
     .from('outlook_credentials')
-    .upsert({
-      user_id: userId,
-      ...creds,
-    })
+    .upsert(payload)
     .select()
     .single()
 
