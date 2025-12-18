@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { exchangeOutlookCode } from '@/core/ingest/outlook'
 import { upsertOutlookCredentials } from '@/core/db/repositories/outlookCredentials'
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options) {
+          set(name: string, value: string, options: CookieOptions) {
             cookieStore.set({ name, value, ...options })
           },
-          remove(name: string, options) {
+          remove(name: string, options: CookieOptions) {
             cookieStore.set({ name, value: '', ...options })
           },
         },
