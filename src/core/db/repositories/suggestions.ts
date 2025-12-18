@@ -74,7 +74,7 @@ export async function approveSuggestions(params: {
       checklist: sug.checklist
         ? sug.checklist.map((text) => ({ text, checked: false }))
         : undefined,
-      tags: null,
+      tags: undefined,
     })
     familyItems.push(item)
 
