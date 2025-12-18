@@ -277,6 +277,55 @@ export const ItemDeleteResponseSchema = z.object({
 export type ItemDeleteResponse = z.infer<typeof ItemDeleteResponseSchema>;
 
 // ============================================================================
+// Ingest - Manual
+// ============================================================================
+
+export const ManualIngestCreateSchema = z.object({
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  senderEmail: z.string().email(),
+  senderName: z.string().optional(),
+  receivedAt: z.string().datetime().optional(), // defaults to now
+});
+
+export const ManualIngestResponseSchema = z.object({
+  success: z.boolean(),
+  sourceMessageId: z.string().uuid(),
+});
+
+export type ManualIngestCreate = z.infer<typeof ManualIngestCreateSchema>;
+export type ManualIngestResponse = z.infer<typeof ManualIngestResponseSchema>;
+
+// ============================================================================
+// Outlook connection + settings
+// ============================================================================
+
+export const OutlookConnectUrlResponseSchema = z.object({
+  authUrl: z.string().url(),
+});
+
+export type OutlookConnectUrlResponse = z.infer<typeof OutlookConnectUrlResponseSchema>;
+
+export const OutlookCallbackRequestSchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+});
+
+export const OutlookSyncResponseSchema = z.object({
+  success: z.boolean(),
+  ingestedCount: z.number().int(),
+  skippedCount: z.number().int(),
+});
+
+export type OutlookSyncResponse = z.infer<typeof OutlookSyncResponseSchema>;
+
+export const ApprovedSendersSchema = z.object({
+  approved_senders: z.array(z.string().email()).default([]),
+});
+
+export type ApprovedSenders = z.infer<typeof ApprovedSendersSchema>;
+
+// ============================================================================
 // Calendar APIs
 // ============================================================================
 
