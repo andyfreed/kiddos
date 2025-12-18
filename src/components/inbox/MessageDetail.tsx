@@ -10,6 +10,30 @@ interface MessageDetailProps {
 
 export default function MessageDetail({ message }: MessageDetailProps) {
   const router = useRouter()
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+
+  const runExtraction = async () => {
+    setExtracting(true)
+    setExtractError(null)
+    try {
+      const res = await fetch('/api/extract/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceMessageId: message.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Extraction failed')
+      }
+      router.push('/suggestions')
+      router.refresh()
+    } catch (err: any) {
+      setExtractError(err.message)
+    } finally {
+      setExtracting(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -30,6 +54,17 @@ export default function MessageDetail({ message }: MessageDetailProps) {
         >
           Back
         </button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={runExtraction}
+          disabled={extracting}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          {extracting ? 'Extracting...' : 'Run AI Extract'}
+        </button>
+        {extractError && <div className="text-sm text-red-600">{extractError}</div>}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-4 whitespace-pre-wrap text-gray-900">
