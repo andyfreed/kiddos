@@ -41,6 +41,8 @@ export default function ChatWidget() {
       } else {
         setPendingConfirm(null)
       }
+    } catch (err: any) {
+      setMessages((prev) => [...prev, { from: 'bot', text: err.message || 'Chat failed' }])
     } finally {
       setSending(false)
     }
@@ -59,6 +61,8 @@ export default function ChatWidget() {
       if (!res.ok) throw new Error(data.error || 'Confirm failed')
       setMessages((prev) => [...prev, { from: 'bot', text: data.response || 'Done.' }])
       setPendingConfirm(null)
+    } catch (err: any) {
+      setMessages((prev) => [...prev, { from: 'bot', text: err.message || 'Confirm failed' }])
     } finally {
       setSending(false)
     }
