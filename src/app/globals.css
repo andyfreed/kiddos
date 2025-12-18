@@ -14,6 +14,25 @@
   }
 }
 
+@layer base {
+  html {
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* iOS: reduce tap highlight + long-press callout */
+  a, button {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
 body {
   color: #1f2937; /* Dark gray for better contrast */
   background: var(--background);
@@ -33,5 +52,18 @@ p {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Notch / home-indicator safe areas (iOS Safari + installed PWA) */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* iOS momentum scrolling where overflow is used */
+  .ios-scroll {
+    -webkit-overflow-scrolling: touch;
   }
 }
