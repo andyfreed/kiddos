@@ -44,11 +44,16 @@ export const RunExtractionArgsSchema = z.object({
   sourceMessageId: z.string().uuid(),
 })
 
+export const ListInboxArgsSchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).optional(),
+})
+
 export type ToolName =
   | 'list_items'
   | 'create_item'
   | 'update_item'
   | 'delete_item'
+  | 'list_inbox'
   | 'list_suggestions'
   | 'approve_suggestions'
   | 'run_extraction'
@@ -129,6 +134,20 @@ export const OpenAITools = [
   {
     type: 'function',
     function: {
+      name: 'list_inbox',
+      description: 'List recent inbox source messages (emails/pastes).',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 100 },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'list_suggestions',
       description: 'List AI suggestions waiting for approval.',
       parameters: {
@@ -170,4 +189,3 @@ export const OpenAITools = [
     },
   },
 ] as const
-

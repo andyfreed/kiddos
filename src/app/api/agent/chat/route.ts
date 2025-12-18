@@ -7,6 +7,7 @@ import {
   CreateItemArgsSchema,
   UpdateItemArgsSchema,
   DeleteItemArgsSchema,
+  ListInboxArgsSchema,
   ListSuggestionsArgsSchema,
   ApproveSuggestionsArgsSchema,
   RunExtractionArgsSchema,
@@ -20,6 +21,7 @@ import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_PROMPT_TEMPLATE } from '@/cor
 import { createExtractionWithSuggestions } from '@/core/db/repositories/extractions'
 import { logAgentAction } from '@/core/db/repositories/agentActions'
 import { getSupabaseClient } from '@/core/db/client'
+import { listSourceMessages } from '@/core/db/repositories/sourceMessages'
 
 export const dynamic = 'force-dynamic'
 
@@ -181,6 +183,20 @@ async function executeTool(params: {
         diff_json: null,
       })
       return { deleted: true }
+    }
+    case 'list_inbox': {
+      const parsed = ListInboxArgsSchema.parse(args)
+      const messages = await listSourceMessages(userId, parsed.limit || 25)
+      return {
+        messages: messages.map((m) => ({
+          id: m.id,
+          provider: m.provider,
+          subject: m.subject,
+          sender_email: m.sender_email,
+          received_at: m.received_at,
+          created_at: m.created_at,
+        })),
+      }
     }
     case 'list_suggestions': {
       const parsed = ListSuggestionsArgsSchema.parse(args)
