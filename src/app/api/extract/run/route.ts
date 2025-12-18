@@ -84,8 +84,10 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     if (error.name === 'ZodError') {
+      console.error('Extraction zod error', error.errors)
       return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
     }
+    console.error('Extraction error', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
