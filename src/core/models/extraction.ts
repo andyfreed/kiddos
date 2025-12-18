@@ -33,13 +33,20 @@ export const SuggestionFromExtractionSchema = z.object({
   confidence: z.number().min(0).max(1),
   suggested_kid_ids: z.array(z.string().uuid()).nullable().optional(),
   suggested_activity_name: z.string().nullable().optional(),
-  dedupe_key: z.string().min(1),
-  rationale: z.string().min(1),
+  dedupe_key: z.string().min(1).optional().transform((val, ctx) => {
+    if (val && val.length > 0) return val
+    const title = (ctx as any)?.parent?.title
+    return title || 'dedupe-' + Math.random().toString(36).slice(2)
+  }),
+  rationale: z.string().optional().default(''),
 });
 
 // Full extraction output
 export const ExtractionOutputSchema = z.object({
-  suggestions: z.array(SuggestionFromExtractionSchema),
+  suggestions: z.preprocess(
+    (val) => (Array.isArray(val) ? val : []),
+    z.array(SuggestionFromExtractionSchema)
+  ),
 });
 
 export type SuggestionFromExtraction = z.infer<typeof SuggestionFromExtractionSchema>;

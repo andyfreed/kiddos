@@ -25,7 +25,8 @@ export default function MessageDetail({ message }: MessageDetailProps) {
       })
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Extraction failed')
+        const detailText = data.details ? JSON.stringify(data.details) : ''
+        throw new Error(`${data.error || 'Extraction failed'}${detailText ? `: ${detailText}` : ''}`)
       }
       router.push('/suggestions')
       router.refresh()
