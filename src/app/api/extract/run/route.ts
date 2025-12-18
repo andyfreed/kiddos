@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
           { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
           { role: 'user', content: promptUser },
         ],
-        response_format: { type: 'json_object', schema: EXTRACTION_OUTPUT_SCHEMA },
+        response_format: { type: 'json_object' },
       }),
     })
 
