@@ -75,7 +75,7 @@ export async function approveSuggestions(params: {
         ? sug.checklist.map((text) => ({ text, checked: false }))
         : undefined,
       tags: undefined,
-    })
+    }, 'approved')
     familyItems.push(item)
 
     // Link back to source message if possible

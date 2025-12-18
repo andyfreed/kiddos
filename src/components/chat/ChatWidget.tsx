@@ -8,6 +8,11 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Array<{ from: 'user' | 'bot'; text: string }>>([
     { from: 'bot', text: 'Hi! Ask me to create, update, or organize tasks. More tools coming soon.' },
   ])
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    token: string
+    description: string
+    riskLevel: 'low' | 'medium' | 'high'
+  } | null>(null)
   const [sending, setSending] = useState(false)
 
   const send = async () => {
@@ -17,11 +22,43 @@ export default function ChatWidget() {
     setMessages((prev) => [...prev, { from: 'user', text }])
     setSending(true)
     try {
-      // Placeholder until the full agent API is wired
-      setMessages((prev) => [
-        ...prev,
-        { from: 'bot', text: 'I noted that. Agent actions will be enabled soon.' },
-      ])
+      const res = await fetch('/api/agent/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Chat failed')
+      }
+      setMessages((prev) => [...prev, { from: 'bot', text: data.response || '' }])
+      if (data.requiresConfirm && data.confirmToken && data.pendingAction) {
+        setPendingConfirm({
+          token: data.confirmToken,
+          description: data.pendingAction.description,
+          riskLevel: data.pendingAction.riskLevel,
+        })
+      } else {
+        setPendingConfirm(null)
+      }
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const confirm = async () => {
+    if (!pendingConfirm) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/agent/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmToken: pendingConfirm.token }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Confirm failed')
+      setMessages((prev) => [...prev, { from: 'bot', text: data.response || 'Done.' }])
+      setPendingConfirm(null)
     } finally {
       setSending(false)
     }
@@ -70,6 +107,29 @@ export default function ChatWidget() {
                 {m.text}
               </div>
             ))}
+            {pendingConfirm && (
+              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-3 text-sm text-yellow-900">
+                <div className="font-semibold">Confirm action</div>
+                <div className="mt-1">{pendingConfirm.description}</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={confirm}
+                    disabled={sending}
+                    className="px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50 text-sm"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingConfirm(null)}
+                    className="px-3 py-2 bg-white border border-yellow-300 text-yellow-900 rounded-md hover:bg-yellow-100 text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="border-t px-3 py-2 bg-white">

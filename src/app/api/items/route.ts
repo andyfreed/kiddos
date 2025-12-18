@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
       console.log('Final data for repository:', JSON.stringify(finalData, null, 2))
 
-      const item = await createFamilyItem(user.id, finalData)
+      const item = await createFamilyItem(user.id, finalData, 'manual')
       return NextResponse.json({ success: true, itemId: item.id }, { status: 201 })
     } catch (parseError: any) {
       // If it's a ZodError, log the actual received data for debugging

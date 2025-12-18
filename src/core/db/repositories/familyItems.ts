@@ -94,13 +94,19 @@ export async function getFamilyItemById(userId: string, itemId: string): Promise
   return FamilyItemSchema.parse(data);
 }
 
-export async function createFamilyItem(userId: string, item: FamilyItemCreate): Promise<FamilyItem> {
+export type FamilyItemCreatedFrom = 'approved' | 'manual' | 'chat' | 'imported_calendar'
+
+export async function createFamilyItem(
+  userId: string,
+  item: FamilyItemCreate,
+  createdFrom: FamilyItemCreatedFrom = 'manual'
+): Promise<FamilyItem> {
   const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('family_items')
     .insert({
       user_id: userId,
-      created_from: 'manual',
+      created_from: createdFrom,
       ...item,
     })
     .select()
