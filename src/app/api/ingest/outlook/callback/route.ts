@@ -1,16 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { cookies } from 'next/headers'
 import { exchangeOutlookCode } from '@/core/ingest/outlook'
 import { upsertOutlookCredentials } from '@/core/db/repositories/outlookCredentials'
+import { createServerClient } from '@supabase/ssr'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options) {
+            cookieStore.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
+
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.redirect('/settings?error=unauthorized')
+    if (!user) return NextResponse.redirect(new URL('/settings?error=unauthorized', request.url))
 
     const code = request.nextUrl.searchParams.get('code')
-    if (!code) return NextResponse.redirect('/settings?error=missing_code')
+    if (!code) return NextResponse.redirect(new URL('/settings?error=missing_code', request.url))
 
     const tokenResponse = await exchangeOutlookCode(code)
 
@@ -23,9 +44,9 @@ export async function GET(request: NextRequest) {
       scope: tokenResponse.scope,
     })
 
-    return NextResponse.redirect('/settings?outlook=connected')
+    return NextResponse.redirect(new URL('/settings?outlook=connected', request.url))
   } catch (error: any) {
     console.error('Outlook callback error', error)
-    return NextResponse.redirect(`/settings?error=${encodeURIComponent(error.message || 'outlook_error')}`)
+    return NextResponse.redirect(new URL(`/settings?error=${encodeURIComponent(error.message || 'outlook_error')}`, request.url))
   }
 }
