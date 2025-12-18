@@ -8,7 +8,7 @@ export async function listSourceMessages(userId: string, limit = 50): Promise<So
     .from('source_messages')
     .select('*')
     .eq('user_id', userId)
-    .order('received_at', { ascending: false, nullsLast: true })
+    .order('received_at', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limit)
 
