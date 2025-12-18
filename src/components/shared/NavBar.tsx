@@ -30,7 +30,6 @@ export default function NavBar({ user }: NavBarProps) {
       { href: '/kids', label: 'Kids' },
       { href: '/activities', label: 'Activities' },
       { href: '/calendar', label: 'Calendar' },
-      { href: '/chat', label: 'Chat' },
       { href: '/settings', label: 'Settings' },
     ],
     [],
