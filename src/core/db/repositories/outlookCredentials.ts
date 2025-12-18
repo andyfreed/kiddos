@@ -8,6 +8,7 @@ export interface OutlookCredentials {
   token_type: string | null
   scope: string | null
   tenant_id: string | null
+  email?: string | null
 }
 
 export async function getOutlookCredentials(userId: string): Promise<OutlookCredentials | null> {
@@ -32,6 +33,14 @@ export async function upsertOutlookCredentials(userId: string, creds: Partial<Ou
     ...creds,
   }
 
+  if (creds.scope) {
+    const mailScopes = ['Mail.Read', 'Mail.ReadWrite']
+    const found = mailScopes.find((s) => creds.scope?.includes(s))
+    if (found) {
+      payload.scope = creds.scope
+    }
+  }
+
   // Mirror into legacy encrypted columns if they exist (schema from earlier migration)
   if ('access_token' in creds) {
     payload.access_token_encrypted = creds.access_token
@@ -44,6 +53,10 @@ export async function upsertOutlookCredentials(userId: string, creds: Partial<Ou
   }
   if ('token_type' in creds) {
     payload.token_type_encrypted = creds.token_type
+  }
+
+  if ('email' in creds) {
+    payload.email = creds.email
   }
 
   const { data, error } = await supabase
