@@ -57,6 +57,18 @@ export const RenameKidArgsSchema = z.object({
   toName: z.string().min(1),
 })
 
+export const UpdateKidArgsSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).optional(),
+  birthday: z.string().optional().nullable(),
+  grade: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+})
+
+export const DeleteKidArgsSchema = z.object({
+  id: z.string().uuid(),
+})
+
 export const ListActivitiesArgsSchema = z.object({
   limit: z.coerce.number().int().positive().max(500).optional(),
 })
@@ -84,6 +96,8 @@ export type ToolName =
   | 'list_inbox'
   | 'list_kids'
   | 'rename_kid'
+  | 'update_kid'
+  | 'delete_kid'
   | 'list_activities'
   | 'create_activity'
   | 'update_activity'
@@ -205,6 +219,38 @@ export const OpenAITools = [
           toName: { type: 'string' },
         },
         required: ['fromName', 'toName'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_kid',
+      description: 'Update a kid by id.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          birthday: { type: ['string', 'null'] },
+          grade: { type: ['string', 'null'] },
+          notes: { type: ['string', 'null'] },
+        },
+        required: ['id'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_kid',
+      description: 'Delete a kid (risky; requires confirmation).',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
         additionalProperties: false,
       },
     },

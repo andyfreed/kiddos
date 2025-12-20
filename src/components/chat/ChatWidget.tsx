@@ -71,7 +71,15 @@ export default function ChatWidget() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Confirm failed')
       setMessages((prev) => [...prev, { from: 'bot', text: data.response || 'Done.' }])
-      setPendingConfirm(null)
+      if (data.requiresConfirm && data.confirmToken && data.pendingAction) {
+        setPendingConfirm({
+          token: data.confirmToken,
+          description: data.pendingAction.description,
+          riskLevel: data.pendingAction.riskLevel,
+        })
+      } else {
+        setPendingConfirm(null)
+      }
     } catch (err: any) {
       setMessages((prev) => [...prev, { from: 'bot', text: err.message || 'Confirm failed' }])
     } finally {

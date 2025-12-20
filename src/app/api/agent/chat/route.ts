@@ -10,6 +10,8 @@ import {
   ListInboxArgsSchema,
   ListKidsArgsSchema,
   RenameKidArgsSchema,
+  UpdateKidArgsSchema,
+  DeleteKidArgsSchema,
   ListActivitiesArgsSchema,
   CreateActivityArgsSchema,
   UpdateActivityArgsSchema,
@@ -28,7 +30,7 @@ import { createExtractionWithSuggestions } from '@/core/db/repositories/extracti
 import { logAgentAction } from '@/core/db/repositories/agentActions'
 import { getSupabaseClient } from '@/core/db/client'
 import { listSourceMessages } from '@/core/db/repositories/sourceMessages'
-import { getKids, updateKid } from '@/core/db/repositories/kids'
+import { getKids, updateKid, deleteKid } from '@/core/db/repositories/kids'
 import { listActivities, createActivity, updateActivity, deleteActivity, upsertActivityByName } from '@/core/db/repositories/activities'
 
 export const dynamic = 'force-dynamic'
@@ -44,8 +46,19 @@ function isRisky(action: ToolName, args: any): { risky: boolean; riskLevel: Risk
   switch (action) {
     case 'delete_item':
       return { risky: true, riskLevel: 'high', description: `Delete item ${args.id}` }
+    case 'delete_kid':
+      return { risky: true, riskLevel: 'high', description: `Delete kid ${args.id}` }
     case 'delete_activity':
       return { risky: true, riskLevel: 'high', description: `Delete activity ${args.id}` }
+    case 'rename_kid':
+      return { risky: true, riskLevel: 'medium', description: `Rename kid "${args.fromName}" to "${args.toName}"` }
+    case 'update_kid': {
+      const changingName = 'name' in args
+      if (changingName) {
+        return { risky: true, riskLevel: 'medium', description: `Update kid ${args.id} (including name)` }
+      }
+      return { risky: false, riskLevel: 'low', description: `Update kid ${args.id}` }
+    }
     case 'update_item': {
       const changingDates = 'start_at' in args || 'end_at' in args || 'deadline_at' in args
       if (changingDates) {
@@ -253,6 +266,53 @@ async function executeTool(params: {
       })
       return { ok: true, kid: updated }
     }
+    case 'update_kid': {
+      const parsed = UpdateKidArgsSchema.parse(args)
+      const { data: beforeRow } = await supabase
+        .from('kids')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('id', parsed.id)
+        .single()
+      const updated = await updateKid(userId, parsed.id, {
+        name: parsed.name,
+        birthday: parsed.birthday === undefined ? undefined : parsed.birthday,
+        grade: parsed.grade === undefined ? undefined : parsed.grade,
+        notes: parsed.notes === undefined ? undefined : parsed.notes,
+      })
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'update_kid',
+        target_table: 'kids',
+        target_id: updated.id,
+        before_json: beforeRow ?? null,
+        after_json: updated,
+        diff_json: null,
+      })
+      return { kid: updated }
+    }
+    case 'delete_kid': {
+      const parsed = DeleteKidArgsSchema.parse(args)
+      const { data: beforeRow } = await supabase
+        .from('kids')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('id', parsed.id)
+        .single()
+      await deleteKid(userId, parsed.id)
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'delete_kid',
+        target_table: 'kids',
+        target_id: parsed.id,
+        before_json: beforeRow ?? null,
+        after_json: null,
+        diff_json: null,
+      })
+      return { deleted: true }
+    }
     case 'list_activities': {
       const parsed = ListActivitiesArgsSchema.parse(args)
       const activities = await listActivities(userId, parsed.limit || 200)
@@ -412,18 +472,55 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const parsedReq = ChatRequestSchema.parse(body)
 
-    // Confirm flow: execute a previously proposed risky action.
+    // Confirm flow: execute a previously proposed risky action (and optionally continue).
     if (parsedReq.confirmToken) {
       const payload = verifyConfirmToken(parsedReq.confirmToken)
       if (payload.userId !== user.id) {
         return NextResponse.json({ error: 'Invalid confirm token user' }, { status: 403 })
       }
       const toolName = payload.action as ToolName
-      const result = await executeTool({ userId: user.id, name: toolName, args: payload.args, actor: 'user' })
+      const results: Array<{ tool: string; result: any }> = []
+      const first = await executeTool({ userId: user.id, name: toolName, args: payload.args, actor: 'user' })
+      results.push({ tool: toolName, result: first })
+
+      // Continue executing any remaining tool calls until a new risky action is encountered.
+      const remaining = (payload as any)?.remainingToolCalls as any[] | undefined
+      if (Array.isArray(remaining) && remaining.length) {
+        for (let idx = 0; idx < remaining.length; idx++) {
+          const next = remaining[idx]
+          const nextName = next?.name as ToolName
+          const nextArgs = next?.args ?? {}
+          const risk = isRisky(nextName, nextArgs)
+          if (risk.risky) {
+            const token = createConfirmToken({
+              userId: user.id,
+              action: nextName,
+              args: nextArgs,
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+              remainingToolCalls: remaining.slice(idx + 1),
+            } as any)
+            return NextResponse.json({
+              response: `I applied the confirmed change. Next I can do this, but it needs confirmation: ${risk.description}.`,
+              requiresConfirm: true,
+              confirmToken: token,
+              pendingAction: {
+                type: nextName,
+                description: risk.description,
+                riskLevel: risk.riskLevel,
+              },
+              toolCalls: results,
+            })
+          }
+          const r = await executeTool({ userId: user.id, name: nextName, args: nextArgs, actor: 'user' })
+          results.push({ tool: nextName, result: r })
+        }
+      }
+
       return NextResponse.json({
         response: 'Done. I applied the confirmed change.',
         requiresConfirm: false,
-        toolCalls: [{ tool: toolName, result }],
+        toolCalls: results,
       })
     }
 
@@ -458,40 +555,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ response: msg?.content || '', requiresConfirm: false })
     }
 
-    const toolCall = toolCalls[0]
-    const toolName = toolCall.function?.name as ToolName
-    const rawArgs = toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : {}
-
-    const risk = isRisky(toolName, rawArgs)
-    if (risk.risky) {
-      const token = createConfirmToken({
-        userId: user.id,
-        action: toolName,
-        args: rawArgs,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-      })
-      return NextResponse.json({
-        response: `I can do that, but it needs confirmation: ${risk.description}.`,
-        requiresConfirm: true,
-        confirmToken: token,
-        pendingAction: {
-          type: toolName,
-          description: risk.description,
-          riskLevel: risk.riskLevel,
-        },
-      })
+    // Execute tool calls in order until a risky action is hit.
+    const executed: Array<{ id: string; name: ToolName; args: any; result: any }> = []
+    for (let i = 0; i < toolCalls.length; i++) {
+      const tc = toolCalls[i]
+      const name = tc.function?.name as ToolName
+      const args = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {}
+      const risk = isRisky(name, args)
+      if (risk.risky) {
+        const remainingToolCalls = toolCalls
+          .slice(i + 1)
+          .map((t: any) => ({
+            name: t?.function?.name,
+            args: t?.function?.arguments ? JSON.parse(t.function.arguments) : {},
+          }))
+        const token = createConfirmToken({
+          userId: user.id,
+          action: name,
+          args,
+          createdAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+          remainingToolCalls,
+        } as any)
+        return NextResponse.json({
+          response: `I can do that, but it needs confirmation: ${risk.description}.`,
+          requiresConfirm: true,
+          confirmToken: token,
+          pendingAction: {
+            type: name,
+            description: risk.description,
+            riskLevel: risk.riskLevel,
+          },
+          toolCalls: executed.map((e) => ({ tool: e.name, result: e.result })),
+        })
+      }
+      const result = await executeTool({ userId: user.id, name, args, actor: 'ai' })
+      executed.push({ id: tc.id, name, args, result })
     }
 
-    const result = await executeTool({ userId: user.id, name: toolName, args: rawArgs, actor: 'ai' })
+    // Ask model to summarize results (can include multiple tool outputs)
+    const toolMessages: any[] = executed.map((e) => ({
+      role: 'tool',
+      tool_call_id: e.id,
+      content: JSON.stringify(e.result),
+    }))
 
-    // Ask model to summarize result
     const final = await openAIChat({
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: parsedReq.message },
         msg,
-        { role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) },
+        ...toolMessages,
       ],
       tools: OpenAITools as any,
       toolChoice: 'none',
@@ -501,7 +615,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: finalText,
       requiresConfirm: false,
-      toolCalls: [{ tool: toolName, result }],
+      toolCalls: executed.map((e) => ({ tool: e.name, result: e.result })),
     })
   } catch (error: any) {
     if (error.name === 'ZodError') {
