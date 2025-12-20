@@ -69,6 +69,30 @@ export const DeleteKidArgsSchema = z.object({
   id: z.string().uuid(),
 })
 
+export const GetItemLinksArgsSchema = z.object({
+  itemId: z.string().uuid(),
+})
+
+export const LinkItemToKidsArgsSchema = z.object({
+  itemId: z.string().uuid(),
+  kidIds: z.array(z.string().uuid()).min(1).max(20),
+})
+
+export const UnlinkItemFromKidsArgsSchema = z.object({
+  itemId: z.string().uuid(),
+  kidIds: z.array(z.string().uuid()).min(1).max(20),
+})
+
+export const SetItemActivityArgsSchema = z.object({
+  itemId: z.string().uuid(),
+  activityId: z.string().uuid().optional(),
+  activityName: z.string().min(1).optional(),
+})
+
+export const ClearItemActivityArgsSchema = z.object({
+  itemId: z.string().uuid(),
+})
+
 export const ListActivitiesArgsSchema = z.object({
   limit: z.coerce.number().int().positive().max(500).optional(),
 })
@@ -98,6 +122,11 @@ export type ToolName =
   | 'rename_kid'
   | 'update_kid'
   | 'delete_kid'
+  | 'get_item_links'
+  | 'link_item_to_kids'
+  | 'unlink_item_from_kids'
+  | 'set_item_activity'
+  | 'clear_item_activity'
   | 'list_activities'
   | 'create_activity'
   | 'update_activity'
@@ -251,6 +280,81 @@ export const OpenAITools = [
         type: 'object',
         properties: { id: { type: 'string' } },
         required: ['id'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_item_links',
+      description: 'Get relationships for an item (kids/activity).',
+      parameters: {
+        type: 'object',
+        properties: { itemId: { type: 'string' } },
+        required: ['itemId'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'link_item_to_kids',
+      description: 'Link an item to one or more kids.',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string' },
+          kidIds: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+        },
+        required: ['itemId', 'kidIds'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'unlink_item_from_kids',
+      description: 'Unlink an item from one or more kids (risky; requires confirmation).',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string' },
+          kidIds: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+        },
+        required: ['itemId', 'kidIds'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_item_activity',
+      description: 'Set/replace an item’s activity (by activityId or activityName).',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string' },
+          activityId: { type: 'string' },
+          activityName: { type: 'string' },
+        },
+        required: ['itemId'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'clear_item_activity',
+      description: 'Clear an item’s activity link (risky; requires confirmation).',
+      parameters: {
+        type: 'object',
+        properties: { itemId: { type: 'string' } },
+        required: ['itemId'],
         additionalProperties: false,
       },
     },

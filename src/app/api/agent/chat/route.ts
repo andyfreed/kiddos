@@ -12,6 +12,11 @@ import {
   RenameKidArgsSchema,
   UpdateKidArgsSchema,
   DeleteKidArgsSchema,
+  GetItemLinksArgsSchema,
+  LinkItemToKidsArgsSchema,
+  UnlinkItemFromKidsArgsSchema,
+  SetItemActivityArgsSchema,
+  ClearItemActivityArgsSchema,
   ListActivitiesArgsSchema,
   CreateActivityArgsSchema,
   UpdateActivityArgsSchema,
@@ -32,6 +37,13 @@ import { getSupabaseClient } from '@/core/db/client'
 import { listSourceMessages } from '@/core/db/repositories/sourceMessages'
 import { getKids, updateKid, deleteKid } from '@/core/db/repositories/kids'
 import { listActivities, createActivity, updateActivity, deleteActivity, upsertActivityByName } from '@/core/db/repositories/activities'
+import {
+  listLinksForItem,
+  linkItemToKids,
+  unlinkItemFromKids,
+  setItemActivity,
+  clearItemActivity,
+} from '@/core/db/repositories/familyItemLinks'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +71,17 @@ function isRisky(action: ToolName, args: any): { risky: boolean; riskLevel: Risk
       }
       return { risky: false, riskLevel: 'low', description: `Update kid ${args.id}` }
     }
+    case 'unlink_item_from_kids': {
+      const count = Array.isArray(args.kidIds) ? args.kidIds.length : 0
+      const bulk = count > 5
+      return { risky: true, riskLevel: bulk ? 'medium' : 'medium', description: `Unlink item ${args.itemId} from ${count || 'some'} kid(s)` }
+    }
+    case 'clear_item_activity':
+      return { risky: true, riskLevel: 'medium', description: `Clear activity for item ${args.itemId}` }
+    case 'set_item_activity': {
+      // Setting/replacing is usually safe, but bulk or replacing an existing activity can be sensitive.
+      return { risky: false, riskLevel: 'low', description: `Set activity for item ${args.itemId}` }
+    }
     case 'update_item': {
       const changingDates = 'start_at' in args || 'end_at' in args || 'deadline_at' in args
       if (changingDates) {
@@ -79,6 +102,11 @@ function isRisky(action: ToolName, args: any): { risky: boolean; riskLevel: Risk
         return { risky: true, riskLevel: 'medium', description: `Approve ${count} suggestions` }
       }
       return { risky: false, riskLevel: 'low', description: `Approve ${count} suggestions` }
+    }
+    case 'link_item_to_kids': {
+      const count = Array.isArray(args.kidIds) ? args.kidIds.length : 0
+      if (count > 5) return { risky: true, riskLevel: 'medium', description: `Link item ${args.itemId} to ${count} kids` }
+      return { risky: false, riskLevel: 'low', description: `Link item ${args.itemId} to kid(s)` }
     }
     default:
       return { risky: false, riskLevel: 'low', description: action }
@@ -313,6 +341,96 @@ async function executeTool(params: {
       })
       return { deleted: true }
     }
+    case 'get_item_links': {
+      const parsed = GetItemLinksArgsSchema.parse(args)
+      const links = await listLinksForItem(userId, parsed.itemId)
+      const kidIds = Array.from(new Set(links.map((l) => l.kid_id).filter(Boolean) as string[]))
+      const activityIds = Array.from(new Set(links.map((l) => l.activity_id).filter(Boolean) as string[]))
+      return { itemId: parsed.itemId, kidIds, activityIds, links }
+    }
+    case 'link_item_to_kids': {
+      const parsed = LinkItemToKidsArgsSchema.parse(args)
+      const { created } = await linkItemToKids(userId, parsed.itemId, parsed.kidIds)
+      for (const link of created) {
+        await logAgentAction({
+          user_id: userId,
+          actor,
+          action_type: 'link_item_to_kid',
+          target_table: 'family_item_links',
+          target_id: link.id,
+          before_json: null,
+          after_json: link,
+          diff_json: null,
+        })
+      }
+      return { createdCount: created.length, created }
+    }
+    case 'unlink_item_from_kids': {
+      const parsed = UnlinkItemFromKidsArgsSchema.parse(args)
+      const { deleted } = await unlinkItemFromKids(userId, parsed.itemId, parsed.kidIds)
+      for (const link of deleted) {
+        await logAgentAction({
+          user_id: userId,
+          actor,
+          action_type: 'unlink_item_from_kid',
+          target_table: 'family_item_links',
+          target_id: link.id,
+          before_json: link,
+          after_json: null,
+          diff_json: null,
+        })
+      }
+      return { deletedCount: deleted.length, deleted }
+    }
+    case 'set_item_activity': {
+      const parsed = SetItemActivityArgsSchema.parse(args)
+      const result = await setItemActivity({
+        userId,
+        familyItemId: parsed.itemId,
+        activityId: parsed.activityId ?? null,
+        activityName: parsed.activityName ?? null,
+      })
+      for (const link of result.replaced) {
+        await logAgentAction({
+          user_id: userId,
+          actor,
+          action_type: 'clear_item_activity',
+          target_table: 'family_item_links',
+          target_id: link.id,
+          before_json: link,
+          after_json: null,
+          diff_json: null,
+        })
+      }
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'set_item_activity',
+        target_table: 'family_item_links',
+        target_id: result.created.id,
+        before_json: null,
+        after_json: result.created,
+        diff_json: null,
+      })
+      return { replacedCount: result.replaced.length, created: result.created }
+    }
+    case 'clear_item_activity': {
+      const parsed = ClearItemActivityArgsSchema.parse(args)
+      const { deleted } = await clearItemActivity(userId, parsed.itemId)
+      for (const link of deleted) {
+        await logAgentAction({
+          user_id: userId,
+          actor,
+          action_type: 'clear_item_activity',
+          target_table: 'family_item_links',
+          target_id: link.id,
+          before_json: link,
+          after_json: null,
+          diff_json: null,
+        })
+      }
+      return { deletedCount: deleted.length, deleted }
+    }
     case 'list_activities': {
       const parsed = ListActivitiesArgsSchema.parse(args)
       const activities = await listActivities(userId, parsed.limit || 200)
@@ -534,7 +652,7 @@ export async function POST(request: NextRequest) {
     const kids = await getKids(user.id)
     const activities = await listActivities(user.id)
 
-    const system = `You are Kiddos Assistant.\n\nYou can help manage:\n- Kids (rename)\n- Activities (create/update/delete)\n- Items (tasks/events/deadlines)\n- Inbox + extraction + suggestions\n\nRules:\n- Use tools to read/write data.\n- Never delete anything or change date/time fields without confirmation.\n- Renaming activities requires confirmation.\n- For bulk mutations (>5), require confirmation.\n- If you need confirmation, explain what you want to do and wait.\n`
+    const system = `You are Kiddos Assistant.\n\nYou can help manage:\n- Kids (rename/update/delete)\n- Activities (create/update/delete)\n- Items (tasks/events/deadlines)\n- Relationships between items and kids/activities\n- Inbox + extraction + suggestions\n\nRules:\n- Use tools to read/write data.\n- Never delete anything or change date/time fields without confirmation.\n- Renaming activities and kids requires confirmation.\n- Unlinking relationships requires confirmation.\n- For bulk mutations (>5), require confirmation.\n- If you need confirmation, explain what you want to do and wait.\n`
 
     const context = `Context:\n- Kids: ${JSON.stringify(kids.map((k) => ({ id: k.id, name: k.name })))}\n- Activities: ${JSON.stringify(activities.map((a) => ({ id: a.id, name: a.name })))}\n- Recent items (max 20): ${JSON.stringify(items.items)}\n- New suggestions: ${JSON.stringify(suggestions.slice(0, 20))}\n`
 
