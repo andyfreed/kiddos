@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { ExtractRunRequestSchema } from '@/core/models/api'
 import { getSourceMessageById } from '@/core/db/repositories/sourceMessages'
 import { getDocumentsBySourceMessage } from '@/core/db/repositories/documents'
+import { getKids } from '@/core/db/repositories/kids'
+import { listActivities, upsertActivityByName } from '@/core/db/repositories/activities'
 import { EXTRACTION_SYSTEM_PROMPT, EXTRACTION_USER_PROMPT_TEMPLATE, EXTRACTION_OUTPUT_SCHEMA } from '@/core/ai/prompts/extraction'
 import { createExtractionWithSuggestions } from '@/core/db/repositories/extractions'
 
@@ -21,6 +23,8 @@ export async function POST(request: NextRequest) {
     if (!sourceMessage) return NextResponse.json({ error: 'Source message not found' }, { status: 404 })
 
     const documents = await getDocumentsBySourceMessage(user.id, input.sourceMessageId)
+    const kids = await getKids(user.id)
+    const activities = await listActivities(user.id)
 
     const promptUser = EXTRACTION_USER_PROMPT_TEMPLATE({
       emailSubject: sourceMessage.subject,
@@ -29,8 +33,8 @@ export async function POST(request: NextRequest) {
       senderEmail: sourceMessage.sender_email,
       receivedAt: sourceMessage.received_at || new Date().toISOString(),
       timezone: 'UTC',
-      kids: [],
-      activities: [],
+      kids: kids.map((k) => ({ id: k.id, name: k.name, birthday: k.birthday || undefined, grade: k.grade || undefined })),
+      activities: activities.map((a) => ({ id: a.id, name: a.name })),
       documentTexts: documents
         .filter((d) => !!d.text_content)
         .map((d) => ({ filename: d.filename, text: d.text_content || '' })),
@@ -76,6 +80,19 @@ export async function POST(request: NextRequest) {
       inputSnapshot: { sourceMessage, documents: documents.map((d) => ({ id: d.id, filename: d.filename })) },
       output: parsed,
     })
+
+    // Best-effort: ensure any suggested activity names exist as activity templates
+    try {
+      const activityNames: string[] = (Array.isArray((parsed as any)?.suggestions) ? (parsed as any).suggestions : [])
+        .map((s: any) => s?.suggested_activity_name)
+        .filter((n: any): n is string => typeof n === 'string' && n.trim().length > 0)
+      const unique: string[] = Array.from(new Set(activityNames.map((n) => n.trim())))
+      for (const name of unique) {
+        await upsertActivityByName(user.id, name)
+      }
+    } catch {
+      // Ignore activity template creation failures; suggestions are still saved.
+    }
 
     return NextResponse.json({
       success: true,

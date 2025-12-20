@@ -10,6 +10,10 @@ import {
   ListInboxArgsSchema,
   ListKidsArgsSchema,
   RenameKidArgsSchema,
+  ListActivitiesArgsSchema,
+  CreateActivityArgsSchema,
+  UpdateActivityArgsSchema,
+  DeleteActivityArgsSchema,
   ListSuggestionsArgsSchema,
   ApproveSuggestionsArgsSchema,
   RunExtractionArgsSchema,
@@ -25,6 +29,7 @@ import { logAgentAction } from '@/core/db/repositories/agentActions'
 import { getSupabaseClient } from '@/core/db/client'
 import { listSourceMessages } from '@/core/db/repositories/sourceMessages'
 import { getKids, updateKid } from '@/core/db/repositories/kids'
+import { listActivities, createActivity, updateActivity, deleteActivity, upsertActivityByName } from '@/core/db/repositories/activities'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,12 +44,21 @@ function isRisky(action: ToolName, args: any): { risky: boolean; riskLevel: Risk
   switch (action) {
     case 'delete_item':
       return { risky: true, riskLevel: 'high', description: `Delete item ${args.id}` }
+    case 'delete_activity':
+      return { risky: true, riskLevel: 'high', description: `Delete activity ${args.id}` }
     case 'update_item': {
       const changingDates = 'start_at' in args || 'end_at' in args || 'deadline_at' in args
       if (changingDates) {
         return { risky: true, riskLevel: 'medium', description: `Change date/time fields on item ${args.id}` }
       }
       return { risky: false, riskLevel: 'low', description: `Update item ${args.id}` }
+    }
+    case 'update_activity': {
+      const renaming = 'name' in args
+      if (renaming) {
+        return { risky: true, riskLevel: 'medium', description: `Rename/update activity ${args.id}` }
+      }
+      return { risky: false, riskLevel: 'low', description: `Update activity ${args.id}` }
     }
     case 'approve_suggestions': {
       const count = Array.isArray(args.suggestionIds) ? args.suggestionIds.length : 0
@@ -239,6 +253,73 @@ async function executeTool(params: {
       })
       return { ok: true, kid: updated }
     }
+    case 'list_activities': {
+      const parsed = ListActivitiesArgsSchema.parse(args)
+      const activities = await listActivities(userId, parsed.limit || 200)
+      return {
+        activities: activities.map((a) => ({ id: a.id, name: a.name, notes: a.notes })),
+      }
+    }
+    case 'create_activity': {
+      const parsed = CreateActivityArgsSchema.parse(args)
+      const activity = await createActivity(userId, { name: parsed.name, notes: parsed.notes ?? null })
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'create_activity',
+        target_table: 'activities',
+        target_id: activity.id,
+        before_json: null,
+        after_json: activity,
+        diff_json: null,
+      })
+      return { activity }
+    }
+    case 'update_activity': {
+      const parsed = UpdateActivityArgsSchema.parse(args)
+      const { data: beforeRow } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('id', parsed.id)
+        .single()
+      const activity = await updateActivity(userId, parsed.id, {
+        name: parsed.name,
+        notes: parsed.notes === undefined ? undefined : parsed.notes,
+      })
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'update_activity',
+        target_table: 'activities',
+        target_id: activity.id,
+        before_json: beforeRow ?? null,
+        after_json: activity,
+        diff_json: null,
+      })
+      return { activity }
+    }
+    case 'delete_activity': {
+      const parsed = DeleteActivityArgsSchema.parse(args)
+      const { data: beforeRow } = await supabase
+        .from('activities')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('id', parsed.id)
+        .single()
+      await deleteActivity(userId, parsed.id)
+      await logAgentAction({
+        user_id: userId,
+        actor,
+        action_type: 'delete_activity',
+        target_table: 'activities',
+        target_id: parsed.id,
+        before_json: beforeRow ?? null,
+        after_json: null,
+        diff_json: null,
+      })
+      return { deleted: true }
+    }
     case 'list_suggestions': {
       const parsed = ListSuggestionsArgsSchema.parse(args)
       const suggestions = await listSuggestions(userId, [parsed.state])
@@ -266,6 +347,8 @@ async function executeTool(params: {
       const sourceMessage = await getSourceMessageById(userId, parsed.sourceMessageId)
       if (!sourceMessage) throw new Error('Source message not found')
       const documents = await getDocumentsBySourceMessage(userId, parsed.sourceMessageId)
+      const kids = await getKids(userId)
+      const activities = await listActivities(userId)
 
       const promptUser = EXTRACTION_USER_PROMPT_TEMPLATE({
         emailSubject: sourceMessage.subject,
@@ -274,8 +357,8 @@ async function executeTool(params: {
         senderEmail: sourceMessage.sender_email,
         receivedAt: sourceMessage.received_at || new Date().toISOString(),
         timezone: 'UTC',
-        kids: [],
-        activities: [],
+        kids: kids.map((k) => ({ id: k.id, name: k.name, birthday: k.birthday || undefined, grade: k.grade || undefined })),
+        activities: activities.map((a) => ({ id: a.id, name: a.name })),
         documentTexts: documents
           .filter((d) => !!d.text_content)
           .map((d) => ({ filename: d.filename, text: d.text_content || '' })),
@@ -299,6 +382,19 @@ async function executeTool(params: {
         inputSnapshot: { sourceMessage, documents: documents.map((d) => ({ id: d.id, filename: d.filename })) },
         output: parsedJson,
       })
+
+      // Best-effort: ensure suggested activity templates exist
+      try {
+        const activityNames: string[] = (Array.isArray(parsedJson?.suggestions) ? parsedJson.suggestions : [])
+          .map((s: any) => s?.suggested_activity_name)
+          .filter((n: any): n is string => typeof n === 'string' && n.trim().length > 0)
+        const unique: string[] = Array.from(new Set(activityNames.map((n) => n.trim())))
+        for (const name of unique) {
+          await upsertActivityByName(userId, name)
+        }
+      } catch {
+        // ignore
+      }
 
       return { extractionId: extraction.id, suggestions }
     }
@@ -339,10 +435,11 @@ export async function POST(request: NextRequest) {
     const items = await getFamilyItems(user.id, { limit: 20, offset: 0 })
     const suggestions = await listSuggestions(user.id, ['new'])
     const kids = await getKids(user.id)
+    const activities = await listActivities(user.id)
 
     const system = `You are Kiddos Assistant.\n\nRules:\n- Use tools to read/write data.\n- Never delete items or change date/time fields without confirmation.\n- For bulk mutations (>5), require confirmation.\n- If you need confirmation, explain what you want to do and wait.\n`
 
-    const context = `Context:\n- Kids: ${JSON.stringify(kids.map((k) => ({ id: k.id, name: k.name })))}\n- Recent items (max 20): ${JSON.stringify(items.items)}\n- New suggestions: ${JSON.stringify(suggestions.slice(0, 20))}\n`
+    const context = `Context:\n- Kids: ${JSON.stringify(kids.map((k) => ({ id: k.id, name: k.name })))}\n- Activities: ${JSON.stringify(activities.map((a) => ({ id: a.id, name: a.name })))}\n- Recent items (max 20): ${JSON.stringify(items.items)}\n- New suggestions: ${JSON.stringify(suggestions.slice(0, 20))}\n`
 
     const completion = await openAIChat({
       messages: [

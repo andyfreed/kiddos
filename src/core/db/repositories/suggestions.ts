@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../client'
 import { createFamilyItem } from './familyItems'
 import { getExtractionById, getSourceMessageForExtraction } from './extractions'
+import { upsertActivityByName } from './activities'
 import type { FamilyItem } from '@/core/models/familyItem'
 
 export interface SuggestionRow {
@@ -78,16 +79,42 @@ export async function approveSuggestions(params: {
     }, 'approved')
     familyItems.push(item)
 
+    const linkRows: any[] = []
+
     // Link back to source message if possible
     const extraction = await getExtractionById(params.userId, sug.extraction_id)
     if (extraction?.source_message_id) {
-      await supabase
-        .from('family_item_links')
-        .insert({
+      linkRows.push({
+        user_id: params.userId,
+        family_item_id: item.id,
+        source_message_id: extraction.source_message_id,
+      })
+    }
+
+    // Link to suggested kids (if the extractor provided UUIDs)
+    if (Array.isArray(sug.suggested_kid_ids) && sug.suggested_kid_ids.length) {
+      for (const kidId of sug.suggested_kid_ids) {
+        linkRows.push({
           user_id: params.userId,
           family_item_id: item.id,
-          source_message_id: extraction.source_message_id,
+          kid_id: kidId,
         })
+      }
+    }
+
+    // Link to an activity, creating it if needed
+    if (sug.suggested_activity_name && sug.suggested_activity_name.trim()) {
+      const activity = await upsertActivityByName(params.userId, sug.suggested_activity_name)
+      linkRows.push({
+        user_id: params.userId,
+        family_item_id: item.id,
+        activity_id: activity.id,
+      })
+    }
+
+    if (linkRows.length) {
+      const { error: linkError } = await supabase.from('family_item_links').insert(linkRows)
+      if (linkError) throw linkError
     }
   }
 

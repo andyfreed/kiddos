@@ -57,6 +57,25 @@ export const RenameKidArgsSchema = z.object({
   toName: z.string().min(1),
 })
 
+export const ListActivitiesArgsSchema = z.object({
+  limit: z.coerce.number().int().positive().max(500).optional(),
+})
+
+export const CreateActivityArgsSchema = z.object({
+  name: z.string().min(1),
+  notes: z.string().optional().nullable(),
+})
+
+export const UpdateActivityArgsSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).optional(),
+  notes: z.string().optional().nullable(),
+})
+
+export const DeleteActivityArgsSchema = z.object({
+  id: z.string().uuid(),
+})
+
 export type ToolName =
   | 'list_items'
   | 'create_item'
@@ -65,6 +84,10 @@ export type ToolName =
   | 'list_inbox'
   | 'list_kids'
   | 'rename_kid'
+  | 'list_activities'
+  | 'create_activity'
+  | 'update_activity'
+  | 'delete_activity'
   | 'list_suggestions'
   | 'approve_suggestions'
   | 'run_extraction'
@@ -182,6 +205,66 @@ export const OpenAITools = [
           toName: { type: 'string' },
         },
         required: ['fromName', 'toName'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_activities',
+      description: 'List activity templates for the current user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 500 },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_activity',
+      description: 'Create an activity template (e.g. "Soccer practice").',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          notes: { type: ['string', 'null'] },
+        },
+        required: ['name'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_activity',
+      description: 'Update an activity template. Renames can affect matching.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          name: { type: 'string' },
+          notes: { type: ['string', 'null'] },
+        },
+        required: ['id'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_activity',
+      description: 'Delete an activity template (risky; requires confirmation).',
+      parameters: {
+        type: 'object',
+        properties: { id: { type: 'string' } },
+        required: ['id'],
         additionalProperties: false,
       },
     },

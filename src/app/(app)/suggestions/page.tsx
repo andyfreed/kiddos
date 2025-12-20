@@ -11,6 +11,7 @@ interface Suggestion {
   end_at: string | null
   deadline_at: string | null
   confidence: number
+  suggested_activity_name?: string | null
 }
 
 export default function SuggestionsPage() {
@@ -73,6 +74,11 @@ export default function SuggestionsPage() {
                 <div className="text-xs uppercase text-gray-600">{s.type}</div>
                 <h2 className="text-lg font-semibold">{s.title}</h2>
                 {s.description && <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{s.description}</p>}
+                {s.suggested_activity_name ? (
+                  <div className="text-xs text-gray-600 mt-2">
+                    Suggested activity: <span className="font-medium">{s.suggested_activity_name}</span>
+                  </div>
+                ) : null}
                 <div className="text-xs text-gray-500 mt-1">Confidence {Math.round(s.confidence * 100)}%</div>
               </div>
               <button
