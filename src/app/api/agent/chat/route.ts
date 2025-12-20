@@ -437,7 +437,7 @@ export async function POST(request: NextRequest) {
     const kids = await getKids(user.id)
     const activities = await listActivities(user.id)
 
-    const system = `You are Kiddos Assistant.\n\nRules:\n- Use tools to read/write data.\n- Never delete items or change date/time fields without confirmation.\n- For bulk mutations (>5), require confirmation.\n- If you need confirmation, explain what you want to do and wait.\n`
+    const system = `You are Kiddos Assistant.\n\nYou can help manage:\n- Kids (rename)\n- Activities (create/update/delete)\n- Items (tasks/events/deadlines)\n- Inbox + extraction + suggestions\n\nRules:\n- Use tools to read/write data.\n- Never delete anything or change date/time fields without confirmation.\n- Renaming activities requires confirmation.\n- For bulk mutations (>5), require confirmation.\n- If you need confirmation, explain what you want to do and wait.\n`
 
     const context = `Context:\n- Kids: ${JSON.stringify(kids.map((k) => ({ id: k.id, name: k.name })))}\n- Activities: ${JSON.stringify(activities.map((a) => ({ id: a.id, name: a.name })))}\n- Recent items (max 20): ${JSON.stringify(items.items)}\n- New suggestions: ${JSON.stringify(suggestions.slice(0, 20))}\n`
 

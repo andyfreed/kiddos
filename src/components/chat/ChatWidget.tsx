@@ -20,6 +20,17 @@ export default function ChatWidget() {
     if (!text) return
     setInput('')
     setMessages((prev) => [...prev, { from: 'user', text }])
+
+    // If there's a pending confirmation, treat common "yes/confirm" replies as confirmation
+    // so users don't have to click the confirm button.
+    if (
+      pendingConfirm &&
+      /^(yes|y|confirm|ok|okay|sure|do it|proceed)$/i.test(text)
+    ) {
+      await confirm()
+      return
+    }
+
     setSending(true)
     try {
       const res = await fetch('/api/agent/chat', {
